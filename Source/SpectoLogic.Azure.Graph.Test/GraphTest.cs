@@ -12,6 +12,7 @@ using SpectoLogic.Azure.Graph.Serializer;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using SpectoLogic.Azure.Graph.Test.Delivery;
 
 namespace SpectoLogic.Azure.Graph.Test
@@ -195,6 +196,23 @@ namespace SpectoLogic.Azure.Graph.Test
             }
 
             // await TestDeliveryExperimental();
+        }
+
+        [TestMethod]
+        public async Task TestExpando()
+        {
+            Expando.User joe = new Expando.User() {FirstName = "Joe", LastName = "Schmoe"};
+
+            joe.AdditionalProperties.Add(GraphProperty.Create("age", 42, "source", "test-source1"));
+            joe.AdditionalProperties.Add(GraphProperty.Create("color", "red", "source", "test-source1"));
+            joe.AdditionalProperties.Add(GraphProperty.Create("beer", "good", "source", "test-source1"));
+            joe.AdditionalProperties.Add(GraphProperty.Create("truth", true, "source", "test-source1"));
+            joe.AdditionalProperties.Add(GraphProperty.Create("now", DateTimeOffset.Now, "source", "test-source1"));
+
+            joe.AdditionalProperties.Add(GraphProperty.Create("child", "thing 1", "source", "test-source1")
+                .AddValue("thing 2", "source", "test-source1"));
+
+            await client.CreateGraphDocumentAsync<Expando.User>(collection, joe);
         }
 
         public async Task TestDeliveryExperimental()

@@ -11,6 +11,7 @@
         InV,  // Defined as InV (Each Edge has an incomming Vertex)
         OutV, // Defined as OutV (Each Edge has an outgoing Vertex)
         InE,  // Defined as InE (Each Vertex has 0-n incomming Edges)
-        OutE  // Defined as OutE (Each Vertex has 0-n outgoing Edges)
+        OutE,  // Defined as OutE (Each Vertex has 0-n outgoing Edges)
+        Extension
     }
 }

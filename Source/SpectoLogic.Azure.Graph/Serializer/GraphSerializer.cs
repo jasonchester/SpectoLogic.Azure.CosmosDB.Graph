@@ -88,6 +88,11 @@ namespace SpectoLogic.Azure.Graph.Serializer
         /// Contains all Reflection PropertyInfo of all custom Properties detected during the instantiation
         /// </summary>
         Dictionary<string, PropertyInfo> myPI_Custom = new Dictionary<string, PropertyInfo>();
+
+        /// <summary>
+        /// Contains all Reflection PropertyInfo of all custom Properties detected during the instantiation
+        /// </summary>
+        Dictionary<string, PropertyInfo> myPI_Extension = new Dictionary<string, PropertyInfo>();
         /// <summary>
         /// Contains a reference to the GraphClass Attribute if provided. If there was none provided it gets created automatically
         /// based on the available defined properties.
@@ -186,7 +191,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
             {
                 // Defined Properties can be decorated with the GraphProperty Attribute to clearly define its purpose
                 GraphPropertyAttribute gpa = pi.GetCustomAttribute<GraphPropertyAttribute>();
-                if ((gpa != null) && (gpa.DefinedProperty != GraphDefinedPropertyType.None))
+                if ((gpa != null) && (gpa.DefinedProperty != GraphDefinedPropertyType.None) && (gpa.DefinedProperty != GraphDefinedPropertyType.Extension))
                 {
                     #region Assign Defined Property to Member
                     if (myPI_Defined.ContainsKey(gpa.DefinedProperty))
@@ -196,6 +201,10 @@ namespace SpectoLogic.Azure.Graph.Serializer
                     }
                     myPI_Defined.Add(gpa.DefinedProperty, pi);
                     #endregion
+                }
+                else if ((gpa != null) && (gpa.DefinedProperty == GraphDefinedPropertyType.Extension))
+                {
+                    myPI_Extension.Add(pi.Name, pi);
                 }
                 else
                 {
@@ -519,6 +528,36 @@ namespace SpectoLogic.Azure.Graph.Serializer
                         }
                     }
                 }
+                foreach (KeyValuePair<string, PropertyInfo> ep in this.myPI_Extension)
+                {
+                    PropertyInfo pi = ep.Value;
+                    string propertyName = pi.Name;
+                    if (this.myPI_Extension.ContainsKey(propertyName))
+                    {
+                        if (pi.PropertyType == typeof(IList<GraphProperty>))
+                        {
+                            IList <GraphProperty> gps = null;
+                            if (this.myPI_Extension.ContainsKey(propertyName))
+                            {
+                                gps = (IList<GraphProperty>)this.myPI_Extension[propertyName].GetValue(poco);
+                            }
+
+                            foreach (var gp in gps)
+                            {
+                                jOutput.Add(new JProperty(gp.Name, 
+                                    JArray.FromObject(gp.Values.Values.ToList<GraphProperty.GraphPropertyValue>())));
+                            }
+                        }
+                        //else
+                        //{
+                        //    jOutput.Add(new JProperty(pi.Name, new[]{ new JObject(
+                        //        new JProperty("id",Guid.NewGuid().ToString("D")),
+                        //        new JProperty("_value",this.GetCustomProperty(pi.Name, poco))
+                        //    ) }));
+                        //}
+                    }
+                }
+
             }
             else
             {
