@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using SpectoLogic.Azure.Graph.Test.AdditionalProperties;
 using SpectoLogic.Azure.Graph.Test.Delivery;
 
 namespace SpectoLogic.Azure.Graph.Test
@@ -198,49 +199,6 @@ namespace SpectoLogic.Azure.Graph.Test
             // await TestDeliveryExperimental();
         }
 
-        [TestMethod]
-        public async Task TestAdditionalProperties()
-        {
-            Expando.User insertedRecord = new Expando.User() {FirstName = "Joe", LastName = "Schmoe"};
-
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("age", 42, "source", "test-source1"));
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("color", "red", "source", "test-source1"));
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("beer", "good", "source", "test-source1"));
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("truth", true, "source", "test-source1"));
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("now", DateTimeOffset.Now, "source", "test-source1"));
-
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("child", "thing 1", "source", "test-source1")
-                .AddValue("thing 2", "source", "test-source1"));
-
-            await client.CreateGraphDocumentAsync<Expando.User>(collection, insertedRecord);
-            var vertexQuery = client.CreateGremlinQuery<Vertex>(collection, $"g.V('{insertedRecord.Id}')");
-
-            Expando.User queriedRecord = null;
-
-            while (vertexQuery.HasMoreResults)
-            {
-                var results = await vertexQuery.ExecuteNextAsyncAsPOCO<Expando.User>();
-
-                Assert.AreEqual(1, results.Count, "Query did not return 1 record.");
-                
-                foreach (var result in results)
-                {
-                    Console.WriteLine($"Vertex ==> Label:{result.Label} Name:{result.FirstName} {result.LastName}");
-                    queriedRecord = result;
-                }
-            }
-
-            Assert.IsNotNull(queriedRecord);
-
-            Assert.AreEqual(insertedRecord.Id, queriedRecord.Id);
-            Assert.AreEqual(insertedRecord.Label, queriedRecord.Label);
-            Assert.AreEqual(insertedRecord.FirstName, queriedRecord.FirstName);
-            Assert.AreEqual(insertedRecord.LastName, queriedRecord.LastName);
-
-            Assert.AreEqual(insertedRecord.AdditionalProperties.Count, queriedRecord?.AdditionalProperties.Count);
-
-        }
-
         public async Task TestDeliveryExperimental()
         {
             MemoryGraph partialGraph = new MemoryGraph();
@@ -265,5 +223,47 @@ namespace SpectoLogic.Azure.Graph.Test
             #endregion
         }
 
+        [TestMethod]
+        public async Task TestAdditionalProperties()
+        {
+            ExtendablePerson insertedRecord = new ExtendablePerson() { FirstName = "Joe", LastName = "Schmoe" };
+
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("age", 42, "source", "test-source1"));
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("color", "red", "source", "test-source1"));
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("beer", "good", "source", "test-source1"));
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("truth", true, "source", "test-source1"));
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("now", DateTimeOffset.Now, "source", "test-source1"));
+
+            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("child", "thing 1", "source", "test-source1")
+                .AddValue("thing 2", "source", "test-source1"));
+
+            await client.CreateGraphDocumentAsync<ExtendablePerson>(collection, insertedRecord);
+            var vertexQuery = client.CreateGremlinQuery<Vertex>(collection, $"g.V('{insertedRecord.Id}')");
+
+            ExtendablePerson queriedRecord = null;
+
+            while (vertexQuery.HasMoreResults)
+            {
+                var results = await vertexQuery.ExecuteNextAsyncAsPOCO<ExtendablePerson>();
+
+                Assert.AreEqual(1, results.Count, "Query did not return 1 record.");
+
+                foreach (var result in results)
+                {
+                    Console.WriteLine($"Vertex ==> Label:{result.Label} Name:{result.FirstName} {result.LastName}");
+                    queriedRecord = result;
+                }
+            }
+
+            Assert.IsNotNull(queriedRecord);
+
+            Assert.AreEqual(insertedRecord.Id, queriedRecord.Id);
+            Assert.AreEqual(insertedRecord.Label, queriedRecord.Label);
+            Assert.AreEqual(insertedRecord.FirstName, queriedRecord.FirstName);
+            Assert.AreEqual(insertedRecord.LastName, queriedRecord.LastName);
+
+            Assert.AreEqual(insertedRecord.AdditionalProperties.Count, queriedRecord?.AdditionalProperties.Count);
+
+        }
     }
 }
