@@ -234,8 +234,10 @@ namespace SpectoLogic.Azure.Graph.Test
             insertedRecord.AdditionalProperties.Add(GraphProperty.Create("truth", true, "source", "test-source1"));
             insertedRecord.AdditionalProperties.Add(GraphProperty.Create("now", DateTimeOffset.Now, "source", "test-source1"));
 
-            insertedRecord.AdditionalProperties.Add(GraphProperty.Create("child", "thing 1", "source", "test-source1")
-                .AddValue("thing 2", "source", "test-source1"));
+            insertedRecord.AdditionalProperties.Add(GraphProperty
+                .Create("child", "thing 1", "source", "test-source1")
+                .AddValue("thing 2", "source", "test-source1")
+            );
 
             await client.CreateGraphDocumentAsync<ExtendablePerson>(collection, insertedRecord);
             var vertexQuery = client.CreateGremlinQuery<Vertex>(collection, $"g.V('{insertedRecord.Id}')");
