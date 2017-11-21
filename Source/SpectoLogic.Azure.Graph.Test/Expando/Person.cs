@@ -32,7 +32,7 @@ namespace SpectoLogic.Azure.Graph.Test.Expando
         public string FirstName { get; set; }
         public string LastName { get; set; }
 
-        [GraphProperty(DefinedProperty = GraphDefinedPropertyType.Extension)]
+        [GraphProperty(DefinedProperty = GraphDefinedPropertyType.AdditionalProperties)]
         public IList<GraphProperty> AdditionalProperties { get; set; }
     }
 

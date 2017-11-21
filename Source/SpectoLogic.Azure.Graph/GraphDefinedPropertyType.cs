@@ -12,6 +12,6 @@
         OutV, // Defined as OutV (Each Edge has an outgoing Vertex)
         InE,  // Defined as InE (Each Vertex has 0-n incomming Edges)
         OutE,  // Defined as OutE (Each Vertex has 0-n outgoing Edges)
-        Extension
+        AdditionalProperties // Defined as AdditionalProperties (Each Vertex has 0-n Graph Properties in an IList<GraphProperty> property)
     }
 }

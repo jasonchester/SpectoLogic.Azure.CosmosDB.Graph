@@ -88,11 +88,6 @@ namespace SpectoLogic.Azure.Graph.Serializer
         /// Contains all Reflection PropertyInfo of all custom Properties detected during the instantiation
         /// </summary>
         Dictionary<string, PropertyInfo> myPI_Custom = new Dictionary<string, PropertyInfo>();
-
-        /// <summary>
-        /// Contains all Reflection PropertyInfo of all custom Properties detected during the instantiation
-        /// </summary>
-        Dictionary<string, PropertyInfo> myPI_Extension = new Dictionary<string, PropertyInfo>();
         /// <summary>
         /// Contains a reference to the GraphClass Attribute if provided. If there was none provided it gets created automatically
         /// based on the available defined properties.
@@ -191,7 +186,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
             {
                 // Defined Properties can be decorated with the GraphProperty Attribute to clearly define its purpose
                 GraphPropertyAttribute gpa = pi.GetCustomAttribute<GraphPropertyAttribute>();
-                if ((gpa != null) && (gpa.DefinedProperty != GraphDefinedPropertyType.None) && (gpa.DefinedProperty != GraphDefinedPropertyType.Extension))
+                if ((gpa != null) && (gpa.DefinedProperty != GraphDefinedPropertyType.None))
                 {
                     #region Assign Defined Property to Member
                     if (myPI_Defined.ContainsKey(gpa.DefinedProperty))
@@ -201,10 +196,6 @@ namespace SpectoLogic.Azure.Graph.Serializer
                     }
                     myPI_Defined.Add(gpa.DefinedProperty, pi);
                     #endregion
-                }
-                else if ((gpa != null) && (gpa.DefinedProperty == GraphDefinedPropertyType.Extension))
-                {
-                    myPI_Extension.Add(pi.Name, pi);
                 }
                 else
                 {
@@ -218,7 +209,8 @@ namespace SpectoLogic.Azure.Graph.Serializer
                         case "inv": { detectedDefinedType = GraphDefinedPropertyType.InV; } break;
                         case "outv": { detectedDefinedType = GraphDefinedPropertyType.OutV; } break;
                         case "ine": { detectedDefinedType = GraphDefinedPropertyType.InE; } break;
-                        case "oute": {detectedDefinedType = GraphDefinedPropertyType.OutE;} break;
+                        case "oute": { detectedDefinedType = GraphDefinedPropertyType.OutE; } break;
+                        case "additionalproperties": { detectedDefinedType = GraphDefinedPropertyType.AdditionalProperties; } break;
                         default:
                             {
                                 definedDetected = false;
@@ -227,7 +219,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
                             break;
                     }
                     // If an interface was defined ignore properties found by name convention as the interfaces adhere to those!
-                    if (definedDetected && vInterface==null && eInterface==null)
+                    if (definedDetected && vInterface == null && eInterface == null)
                     {
                         // If we found a property by name convention ensure that no other defined property with the same purpose
                         // was defined earlier. If so we assume that this property is a custom property.
@@ -269,7 +261,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
             #endregion
 
             // Store the type information in the internal classattribute
-            if (myClassAttribute.TypeKey==null)
+            if (myClassAttribute.TypeKey == null)
                 myClassAttribute.TypeKey = GraphSerializer.GetTypeKey(targetType);
         }
 
@@ -283,7 +275,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
                 return myContext;
             }
         }
-        
+
         // Defined Properties are Id, Label, InE, OutE, InV, OutV
         #region Helpers to work with defined properties
 
@@ -380,6 +372,21 @@ namespace SpectoLogic.Azure.Graph.Serializer
             return graphProp;
         }
         /// <summary>
+        /// This method is used to get or create an IList of GraphProperties
+        /// </summary>
+        /// <param name="targetInstance"></param>
+        /// <returns></returns>
+        private IList<GraphProperty> GetOrCreateAdditionalProperties(object targetInstance)
+        {
+            var propertyInfo = myPI_Defined[GraphDefinedPropertyType.AdditionalProperties];
+            if (!(propertyInfo.GetValue(targetInstance) is IList<GraphProperty> additionalProperties))
+            {
+                additionalProperties = new List<GraphProperty>();
+                propertyInfo.SetValue(targetInstance, additionalProperties);
+            }
+            return additionalProperties;
+        }
+        /// <summary>
         /// This method is used to transfer the information of a CosmosDB-VertexProperty object into
         /// a GraphProperty instance.
         /// </summary>
@@ -405,7 +412,38 @@ namespace SpectoLogic.Azure.Graph.Serializer
                 else
                     myPI_Custom[propertyName].SetValue(targetInstance, value.Value);
             }
+            else if (value.Key != "_type" && myPI_Defined.ContainsKey(GraphDefinedPropertyType.AdditionalProperties))
+            {
+                var additionalProperties = GetOrCreateAdditionalProperties(targetInstance);
+
+                //get existing graph property or create a new one
+                var gP = additionalProperties.FirstOrDefault(gp => gp.Name == value.Key) ?? new GraphProperty { Name = value.Key };
+                var propValue = new GraphProperty.GraphPropertyValue { Id = value.Id.ToString(), Value = value.Value };
+                if (gP.Values.ContainsKey(value.Id.ToString()))
+                {
+                    gP.Values.Remove(value.Id.ToString());
+                }
+                gP.Values.Add(value.Id.ToString(), propValue);
+                // Read MetaData and add those too
+                PropertyInfo metaProperties = typeof(VertexProperty).GetProperty("Properties", BindingFlags.Instance | BindingFlags.NonPublic);
+                KeyedCollection<string, Property> col = (KeyedCollection<string, Property>)metaProperties.GetValue(value);
+                if (col != null)
+                {
+                    foreach (Property metaProp in col)
+                    {
+                        propValue.Meta.Add(metaProp.Key, metaProp.Value);
+                    }
+                }
+
+                //add to AdditionalProperties if needed
+                if (additionalProperties.All(gp => gp.Name != value.Key))
+                {
+                    additionalProperties.Add(gP);
+                }
+
+            }
         }
+
         /// <summary>
         /// This method is used to transfer the information of a CosmosDB-EdgeProperty object into
         /// a GraphProperty instance.
@@ -505,13 +543,18 @@ namespace SpectoLogic.Azure.Graph.Serializer
                 if (this.IsSerializeTypeInformation())
                 {
                     jOutput.Add(new JProperty("_type", new[]{ new JObject(
-                                new JProperty("id",Guid.NewGuid().ToString("D")),
-                                new JProperty("_value",myClassAttribute.TypeKey)
+                                    new JProperty("id",Guid.NewGuid().ToString("D")),
+                                    new JProperty("_value",myClassAttribute.TypeKey)
                             ) }));
                 }
-                foreach (KeyValuePair<string, PropertyInfo> cp in this.myPI_Custom)
+
+                List<PropertyInfo> propertiesToConvert = this.myPI_Custom.Values.ToList();
+                if (myPI_Defined.TryGetValue(GraphDefinedPropertyType.AdditionalProperties, out var additionalProperties))
                 {
-                    PropertyInfo pi = cp.Value;
+                    propertiesToConvert.Add(additionalProperties);
+                }
+                foreach (PropertyInfo pi in propertiesToConvert)
+                {
                     if (this.GetCustomProperty(pi.Name, poco) != null)
                     {
                         if (pi.PropertyType == typeof(GraphProperty))
@@ -527,37 +570,19 @@ namespace SpectoLogic.Azure.Graph.Serializer
                             ) }));
                         }
                     }
-                }
-                foreach (KeyValuePair<string, PropertyInfo> ep in this.myPI_Extension)
-                {
-                    PropertyInfo pi = ep.Value;
-                    string propertyName = pi.Name;
-                    if (this.myPI_Extension.ContainsKey(propertyName))
+                    else //if (this.GetDefinedProperty(GraphDefinedPropertyType.AdditionalProperties, poco) != null)
                     {
-                        if (pi.PropertyType == typeof(IList<GraphProperty>))
-                        {
-                            IList <GraphProperty> gps = null;
-                            if (this.myPI_Extension.ContainsKey(propertyName))
-                            {
-                                gps = (IList<GraphProperty>)this.myPI_Extension[propertyName].GetValue(poco);
-                            }
+                        var gps = (IList<GraphProperty>)this.GetDefinedProperty(GraphDefinedPropertyType.AdditionalProperties, poco);
 
+                        if (gps != null)
+                        {
                             foreach (var gp in gps)
                             {
-                                jOutput.Add(new JProperty(gp.Name, 
-                                    JArray.FromObject(gp.Values.Values.ToList<GraphProperty.GraphPropertyValue>())));
+                                jOutput.Add(new JProperty(gp.Name, JArray.FromObject(gp.Values.Values.ToList<GraphProperty.GraphPropertyValue>())));
                             }
                         }
-                        //else
-                        //{
-                        //    jOutput.Add(new JProperty(pi.Name, new[]{ new JObject(
-                        //        new JProperty("id",Guid.NewGuid().ToString("D")),
-                        //        new JProperty("_value",this.GetCustomProperty(pi.Name, poco))
-                        //    ) }));
-                        //}
                     }
                 }
-
             }
             else
             {
@@ -565,7 +590,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
                 IGraphSerializer outVSerial = outV != null ? GraphSerializerFactory.CreateGraphSerializer(myContext, outV.GetType()) : null;
 
                 object inV = this.GetDefinedProperty(GraphDefinedPropertyType.InV, poco);
-                IGraphSerializer inVSerial = inV != null ? GraphSerializerFactory.CreateGraphSerializer(myContext,inV.GetType()) : null;
+                IGraphSerializer inVSerial = inV != null ? GraphSerializerFactory.CreateGraphSerializer(myContext, inV.GetType()) : null;
 
                 jOutput.Add(new JProperty("_isEdge", true)); // Change from 2.2 to 2.4 --> in 2.2 it was required to store it as string!
                 if (inVSerial != null)
@@ -648,7 +673,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
                     else
                         vertexSerializer = GraphSerializerFactory.CreateGraphSerializer(myContext, outVTypeString);
 
-                    outvertex = vertexSerializer.CreateItemInstanceObject(ve.OutVertexId.ToString()); 
+                    outvertex = vertexSerializer.CreateItemInstanceObject(ve.OutVertexId.ToString());
                     // Make sure the Out-Edge of the Vertex is set to the Edge
                     vertexSerializer.AddDefinedPropertyListItem(GraphDefinedPropertyType.OutE, outvertex, edge);
                     // Set the OutV property of the edge with the just fetched OutV
@@ -720,11 +745,11 @@ namespace SpectoLogic.Azure.Graph.Serializer
                     serializer = GraphSerializerFactory.CreateGraphSerializer(myContext, inVTypeString);
 
                 /// Try to create/fetch the referenced In-Vertex
-                inVertex = serializer.CreateItemInstanceObject(e.InVertexId.ToString()); 
-                
+                inVertex = serializer.CreateItemInstanceObject(e.InVertexId.ToString());
+
                 serializer.SetDefinedProperty(GraphDefinedPropertyType.Label, inVertex, e.InVertexLabel);
                 serializer.AddDefinedPropertyListItem(GraphDefinedPropertyType.InE, inVertex, resultEdge);
-                
+
                 /// Set the created In-Vertex as InV-Property
                 this.SetDefinedProperty(GraphDefinedPropertyType.InV, resultEdge, inVertex);
             }
@@ -743,7 +768,7 @@ namespace SpectoLogic.Azure.Graph.Serializer
 
                 serializer.SetDefinedProperty(GraphDefinedPropertyType.Label, outVertex, e.OutVertexLabel);
                 serializer.AddDefinedPropertyListItem(GraphDefinedPropertyType.OutE, outVertex, resultEdge);
-                
+
                 /// Set the created Out-Vertex as OutV-Property
                 this.SetDefinedProperty(GraphDefinedPropertyType.OutV, resultEdge, outVertex);
             }
@@ -787,9 +812,9 @@ namespace SpectoLogic.Azure.Graph.Serializer
                 return tmpGraphItem;
             }
             T instance = new T();
-            serializer = GraphSerializerFactory.CreateGraphSerializer(context,typeof(T));
+            serializer = GraphSerializerFactory.CreateGraphSerializer(context, typeof(T));
             serializer.SetDefinedProperty(GraphDefinedPropertyType.Id, instance, id);
-         
+
             context[id] = instance;
             return instance;
         }
