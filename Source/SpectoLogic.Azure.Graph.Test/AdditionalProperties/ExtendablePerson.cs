@@ -12,6 +12,7 @@ namespace SpectoLogic.Azure.Graph.Test.AdditionalProperties
             Label = nameof(ExtendablePerson);
             InE = new List<IExpandoEdge>();
             OutE = new List<IExpandoEdge>();
+            Version = 1;
             AdditionalProperties = new List<GraphProperty>();
         }
         public IList<IExpandoEdge> InE { get; set; }
@@ -20,6 +21,7 @@ namespace SpectoLogic.Azure.Graph.Test.AdditionalProperties
         public string Label { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public long Version { get; set; }
 
         [GraphProperty(DefinedProperty = GraphDefinedPropertyType.AdditionalProperties)]
         public IList<GraphProperty> AdditionalProperties { get; set; }

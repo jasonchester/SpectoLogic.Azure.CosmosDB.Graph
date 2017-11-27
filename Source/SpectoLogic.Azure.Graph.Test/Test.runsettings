@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>  
 <RunSettings>  
   <TestRunParameters>  
-    <Parameter name="Account_DemoBuild_Hobbit" value="https://localhost:8081/" />  
+    <Parameter name="Account_DemoBuild_Hobbit" value="https://chestmodev1.documents.azure.com:443/" />  
     <Parameter name="Account_DemoBuild_Hobbit_Graph" value="testgraph" />  
-    <Parameter name="Account_DemoBuild_Hobbit_Key" value="C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==" />
+    <Parameter name="Account_DemoBuild_Hobbit_Key" value="Fq2rV7Ryk6UgVsdetb2S0mRaZIyaqV1adfa4LdCWkz6oo29rPbdgTDEk6uo3d995SeZvXcmsQknJD02Vx9X7Yg==" />
   </TestRunParameters>  
 </RunSettings>  

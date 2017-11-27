@@ -24,6 +24,8 @@ namespace SpectoLogic.Azure.Graph.Test.Simple
         [GraphProperty(PropertyName = "name")] // NOT YET SUPPORTED
         public string name { get; set; }
 
+        public int IntValue { get; set; }
+
         public GraphProperty country { get; set; } // GET RICH Information like Id,... TODO: Enable GraphProperty<T> to allow custom property values
 
         [JsonIgnore]

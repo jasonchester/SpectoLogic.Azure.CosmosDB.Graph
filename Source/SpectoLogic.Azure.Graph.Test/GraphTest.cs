@@ -53,8 +53,8 @@ namespace SpectoLogic.Azure.Graph.Test
         [TestMethod]
         public async Task TestSimple()
         {
-            Simple.Place cave = new Simple.Place() { name = "Cave of Hobbit" };
-            Simple.Place restaurant = new Simple.Place() { name = "Restaurant Green Dragon" };
+            Simple.Place cave = new Simple.Place() { name = "Cave of Hobbit", IntValue = 100};
+            Simple.Place restaurant = new Simple.Place() { name = "Restaurant Green Dragon", IntValue = 1000};
             Simple.Place europe = new Simple.Place()
             {
                 name = "Europe",
